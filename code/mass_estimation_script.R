@@ -35,7 +35,7 @@ dillon = read.csv("../data/paul_huxley_data/dillon.csv")
 
 
 # Genome Data Loading
-genomes = read.csv("../data/genome_data/speciessummary.csv"); genomes[1] = NULL # Genome summary data and change column name
+genomes = read.csv("../data/genome_data/speciessummary.csv"); genomes[1] = NULL # Genome summary data obtained from NCBI; and change column name
 
 # Data Standardisation & Organisation Functions
 check_data = function(data){
@@ -153,6 +153,10 @@ file = bodymass(file, dillon$X.order.species, dillon$dry.mass.mg., "mass", "mg",
 merged = adjust_values(merge(file, genomes, by = "Species")); length(unique(merged$Species)) # Merge genome and species data sets - this tells us which & how many species we have data for.
 merged = subset(merged, Level == "Chromosome") # Keep only highest-quality genomes (Chromosome-level)
 
+dir.create(file.path("../results"), showWarnings = FALSE) # Create an output directory relative to "code/", suppress warnings if it already exists
+write.csv(merged, "../results/Insect_Masses_with_Genome_Information.csv") # output to results file
+
+
 plotting <- merged %>% # Create subset to visualise dataset
   group_by(Species) %>%
   summarize(Mean_Converted_Value = mean(Converted_Value, na.rm = TRUE)) %>%
@@ -248,5 +252,4 @@ adjust_values_mass <- function(data) {
 } # function to adjust & convert values
 mass = adjust_values_mass(mass) # apply function
 
-dir.create(file.path("../results"), showWarnings = FALSE) # Create an output directory relative to "code/", suppress warnings if it already exists
 write.csv(mass, "../results/Insect_Masses.csv") # output to results file
