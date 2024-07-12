@@ -5,37 +5,39 @@ library(taxizedb)
 library(parallel)
 
 # Body Mass Data Loading
-animaltraits = read.csv("../data/mass_data/animaltraits.csv") # AnimalTraits Data https://animaltraits.org/
-coleoptera = read_xlsx("../data/mass_data/S1_File.xlsx", sheet = 1) # Canadian Coleoptera Data https://doi.org/10.7717/peerj.12799/supp-1
-kuhsel = read.csv("../data/mass_data/Kuhsel_2016_Insect_data.csv") # Surface Area-Volume Data (Contains body mass) https://doi.org/10.1111/1744-7917.12362
-orthoptera = read.csv("../data/mass_data/orthoptera_mass.csv", sep = "\t") # Figure 1 mass data on orthoptera species https://doi.org/10.1665/1082-6467-17.2.301
-bruckner = read.csv("../data/mass_data/bruckner_2017_arthropods.csv") # Pollinator data https://doi.org/10.1371/journal.pone.0175001
-kinsella = read.csv("../data/mass_data/KinsellaBiomass.csv") # Predicted Lepidoptera data https://doi.org/10.1002%2Fece3.6546 
-horne = read.csv("../data/mass_data/Horne_2018_Arthropods.csv") # Arthropod data collation https://doi.org/10.1111/1365-2435.13031
-load("../data/mass_data/kendall_2019_pollimetry_dataset.rdata") # https://doi.org/10.1002/ece3.4835
-leiva = read.csv("../data/mass_data/Leiva_et_al_DataBase_PhilTransB_update.csv") # Ectotherm data collation and critical thermal limits https://doi.org/10.1098/rstb.2019.0035
-woodcock = read.csv("../data/mass_data/woodcock.csv") # https://doi.org/10.5285/78408af3-452f-41af-95f3-ffc13b05c232
-hagge = read.csv("../data/mass_data/haggesaproxyl.csv") # https://doi.org/10.5061/dryad.2fqz612p3
+animaltraits = read.csv("../data/mass/animaltraits.csv") # AnimalTraits Data https://animaltraits.org/
+coleoptera = read_xlsx("../data/mass/S1_File.xlsx", sheet = 1) # Canadian Coleoptera Data https://doi.org/10.7717/peerj.12799/supp-1
+kuhsel = read.csv("../data/mass/Kuhsel_2016_Insect_data.csv") # Surface Area-Volume Data (Contains body mass) https://doi.org/10.1111/1744-7917.12362
+orthoptera = read.csv("../data/mass/orthoptera_mass.csv", sep = "\t") # Figure 1 mass data on orthoptera species https://doi.org/10.1665/1082-6467-17.2.301
+bruckner = read.csv("../data/mass/bruckner_2017_arthropods.csv") # Pollinator data https://doi.org/10.1371/journal.pone.0175001
+kinsella = read.csv("../data/mass/KinsellaBiomass.csv") # Predicted Lepidoptera data https://doi.org/10.1002%2Fece3.6546 
+horne = read.csv("../data/mass/Horne_2018_Arthropods.csv") # Arthropod data collation https://doi.org/10.1111/1365-2435.13031
+load("../data/mass/kendall_2019_pollimetry_dataset.rdata") # https://doi.org/10.1002/ece3.4835
+leiva = read.csv("../data/mass/Leiva_et_al_DataBase_PhilTransB_update.csv") # Ectotherm data collation and critical thermal limits https://doi.org/10.1098/rstb.2019.0035
+woodcock = read.csv("../data/mass/woodcock.csv") # https://doi.org/10.5285/78408af3-452f-41af-95f3-ffc13b05c232
+hagge = read.csv("../data/mass/haggesaproxyl.csv") # https://doi.org/10.5061/dryad.2fqz612p3
 
 # Body Size Data Loading
-gtdrift = read.csv("../data/mass_data/GTDrift_life_history_traits.tab", sep = "\t", encoding="UTF-8") # Animal Genetic Drift database (pre-print) https://doi.org/10.1101/2024.01.23.576799
-opdb = read.csv("../data/size_data/opdb.csv") # Odonate Phenotypic Database https://doi.org/10.1038/s41597-019-0318-9
-brose = read.csv("../data/size_data/bodysizes_2008.txt", sep = "\t", encoding="UTF-8") # Consumer Body Sizes https://doi.org/10.1890/05-0379
-arthropodtraits = read.csv("../data/size_data/ArthropodSpeciesTraits.txt", sep = "\t", encoding="UTF-8") # Arthropod Sizes https://doi.org/10.1038/sdata.2015.13
-mwelling = read_xlsx("../data/size_data/European_&_Maghreb_Butterfly_Trait_data_v1.2.xlsx", sheet = 1); columns = names(mwelling)[4:224]; mwelling <- mwelling %>% mutate(across(all_of(columns), as.numeric)); mwelling$mean_row <- rowMeans(mwelling[, c("FoL_var_male_average", "FoL_var_female_average", "FoL_HR_average", "FoL_Ten_average")], na.rm = TRUE) # https://doi.org/10.1038/s41597-020-00697-7
-leptraits = read.csv("../data/size_data/leptraits.csv") # https://doi.org/10.1038/s41597-022-01473-5
-gillespie = read_xlsx("../data/size_data/gillespie2017beetles.xlsx"); colnames(gillespie) = gillespie[2,]; gillespie = gillespie[-c(1:2),] # https://doi.org/10.1002%2Fece3.2732
+gtdrift = read.csv("../data/mass/GTDrift_life_history_traits.tab", sep = "\t", encoding="UTF-8") # Animal Genetic Drift database (pre-print) https://doi.org/10.1101/2024.01.23.576799
+opdb = read.csv("../data/size/opdb.csv") # Odonate Phenotypic Database https://doi.org/10.1038/s41597-019-0318-9
+brose = read.csv("../data/size/bodysizes_2008.txt", sep = "\t", encoding="UTF-8") # Consumer Body Sizes https://doi.org/10.1890/05-0379
+arthropodtraits = read.csv("../data/size/ArthropodSpeciesTraits.txt", sep = "\t", encoding="UTF-8") # Arthropod Sizes https://doi.org/10.1038/sdata.2015.13
+mwelling = read_xlsx("../data/size/European_&_Maghreb_Butterfly_Trait_data_v1.2.xlsx", sheet = 1); columns = names(mwelling)[4:224]; mwelling[mwelling == "NA"] <- NA; mwelling[columns] <- lapply(mwelling[columns], as.numeric); mwelling$mean_row <- rowMeans(mwelling[, c("FoL_var_male_average", "FoL_var_female_average", "FoL_HR_average", "FoL_Ten_average")], na.rm = TRUE) # https://doi.org/10.1038/s41597-020-00697-7
+leptraits <- read.csv("../data/size/leptraits.csv"); columns <- c("WS_U_Fem", "WS_U_Mal", "WS_U"); leptraits$Row_Means <- rowMeans(leptraits[, columns], na.rm = TRUE); leptraits[leptraits == "NaN"] = NA
+gillespie = read_xlsx("../data/size/gillespie2017beetles.xlsx"); colnames(gillespie) = gillespie[2,]; gillespie = gillespie[-c(1:2),] # https://doi.org/10.1002%2Fece3.2732
 
 
 # Paul Huxley Data
-white = read.csv("../data/paul_huxley_data/arthropod-data-from-White-et-al-Metabolic-Scaling.csv")
-ehnes = read.csv("../data/paul_huxley_data/Ehnes.csv")
-meehan = read.csv("../data/paul_huxley_data/Meehan.csv")
-dillon = read.csv("../data/paul_huxley_data/dillon.csv")
+white = read.csv("../data/body-size-datasets-and-materials/arthropod-data-from-White-et-al-Metabolic-Scaling.csv")
+ehnes = read.csv("../data/body-size-datasets-and-materials/fixed/Ehnes.csv")
+meehan = read.csv("../data/body-size-datasets-and-materials/fixed/Meehan.csv")
+dillon = read.csv("../data/body-size-datasets-and-materials/fixed/dillon.csv")
 
+# Diorhabda carinulata mass
+diorhabda <- data.frame(Species = "Diorhabda carinulata", Value = 0.01089, Trait = "mass", Metric = "g", State = "Live", Estimate = "No", doi = "https://hdl.handle.net/10539/25023")
 
 # Genome Data Loading
-genomes = read.csv("../data/genome_data/speciessummary.csv"); genomes[1] = NULL # Genome summary data obtained from NCBI; and change column name
+genomes = read.csv("../data/genome/speciessummary.csv"); genomes[1] = NULL # Genome summary data and change column name
 
 # Data Standardisation & Organisation Functions
 check_data = function(data){
@@ -123,31 +125,33 @@ adjust_values <- function(data) {
 
 # Data entry
 file = c()
-file = bodymass(file, coleoptera$Species, coleoptera$`Mass (mg)`, "mass", "mg", "NA", "Yes", "https://doi.org/10.7717/peerj.12799/supp-1")
+file = bodymass(file, coleoptera$Species, coleoptera$`Mass (mg)`, "mass", "mg", "Live", "Yes", "https://doi.org/10.7717/peerj.12799/supp-1")
 # file = bodymass(file, animaltraits$species[animaltraits$class == "Insecta"], animaltraits$body.mass[animaltraits$class == "Insecta"], "mass","kg", "NA", "No", "https://animaltraits.org/") # Excluded due to poor data origins (wikipedia etc.)
 file = bodymass(file, kuhsel$Species, kuhsel$Dry.mass..mg., "mass","mg", "Dry", "No", "https://doi.org/10.1111/1744-7917.12362")
 file = bodymass(file, orthoptera$Species, orthoptera$Live.Weight..g., "mass","g", "Live", "No", "https://doi.org/10.1665/1082-6467-17.2.301")
 file = bodymass(file, bruckner$Species, bruckner$body.mass, "mass","mg", "Dry", "NA", "https://doi.org/10.1371/journal.pone.0175001")
 file = bodymass(file, kinsella$SPECIES, kinsella$PRED_DRY_MASS, "mass","mg", "Dry", "Yes", "https://doi.org/10.1002%2Fece3.6546")
 file = bodymass(file, horne$Species, horne$Dry.Mass..mg., "mass","mg", "Dry", "No", "https://doi.org/10.1111/1365-2435.13031")
-file = bodymass(file, pollimetry_dataset$Species, pollimetry_dataset$Spec.wgt, "mass","mg", "NA", "NA", "https://doi.org/10.1002/ece3.4835")
+file = bodymass(file, pollimetry_dataset$Species, pollimetry_dataset$Spec.wgt, "mass","mg", "Dry", "NA", "https://doi.org/10.1002/ece3.4835")
 file = bodymass(file, leiva$species[leiva$class == "Insecta"], leiva$body_mass[leiva$class == "Insecta"], "mass","mg", "NA", "NA", "https://doi.org/10.1098/rstb.2019.0035")
 # file = bodymass(file, woodcock$Species, woodcock$Mass, "mass", "mg", "Dry", "No", "https://doi.org/10.5285/78408af3-452f-41af-95f3-ffc13b05c232") # Data differs significantly within species - unsure of quality
-file = bodymass(file, brose$Taxonomy.consumer[brose$Metabolic.category.consumer == "invertebrate"], brose$Mean.mass..g..consumer[brose$Metabolic.category.consumer == "invertebrate"], "mass", "g", "NA", "Yes", "https://doi.org/10.1890/05-0379")
+file = bodymass(file, brose$Taxonomy.consumer[brose$Metabolic.category.consumer == "invertebrate"], brose$Mean.mass..g..consumer[brose$Metabolic.category.consumer == "invertebrate"], "mass", "g", "Live", "Yes", "https://doi.org/10.1890/05-0379")
 # file = bodymass(file, gtdrift$species[gtdrift$life_history_traits == "weight_kg"], gtdrift$value[gtdrift$life_history_traits == "weight_kg"], "mass","kg", "NA", "NA", "https://doi.org/10.1101/2024.01.23.576799") # Excluded due to poor data origins (wikipedia etc.)
 
 # file = bodymass(file, gtdrift$species[gtdrift$life_history_traits == "length_cm"], gtdrift$value[gtdrift$life_history_traits == "length_cm"], "size","cm", "NA", "NA", "https://doi.org/10.1101/2024.01.23.576799") # Excluded due to poor data origins (wikipedia etc.)
 file = bodymass(file, opdb$GenusSpecies, opdb$body_lengths, "size", "mm", "NA", "Yes", "https://doi.org/10.1038/s41597-019-0318-9")
-file = bodymass(file, mwelling$`Taxa name`, mwelling$mean_row, "size", "mm", "Live", "Yes", "https://doi.org/10.1038/s41597-020-00697-7") # mean wing length from 4 sources, within middleton-welling (check data entry above)
-file = bodymass(file, leptraits$Species, leptraits$FW_U, "size", "cm", "Live", "Yes", "https://doi.org/10.1038/s41597-022-01473-5") # upper wing length
+file = bodymass(file, mwelling$`Taxa name`, mwelling$mean_row, "size", "mm", "NA", "Yes", "https://doi.org/10.1038/s41597-020-00697-7")
+file = bodymass(file, leptraits$Species, leptraits$FW_U, "size", "cm", "NA", "Yes", "https://doi.org/10.1038/s41597-022-01473-5")
 file = bodymass(file, hagge$species, hagge$body_length, "size", "mm", "NA", "No", "https://doi.org/10.5061/dryad.2fqz612p3")
 file = bodymass(file, gillespie$Species, gillespie$`Mean body size (mm)`, "size", "mm", "NA", "No", "https://doi.org/10.1002%2Fece3.2732")
 # file = bodymass(file, arthropodtraits$SpeciesID, arthropodtraits$Body_Size, "size", "mm", "NA", "NA", "https://doi.org/10.1038/sdata.2015.13") # Excluded due to poor data origins (wikipedia etc.)
 
-file = bodymass(file, white$Species, white$max.mass.g, "mass", "g", "NA", "No", "https://doi.org/10.1126/science.abm7649")
+file = bodymass(file, white$Species, white$max.mass.g, "mass", "g", "Live", "No", "https://doi.org/10.1126/science.abm7649")
 file = bodymass(file, ehnes$Species, ehnes$weight..mg., "mass", "mg", "Live", "No", "https://doi.org/10.1111/j.1461-0248.2011.01660.x")
 file = bodymass(file, meehan$Species, meehan$Live.Mass..mg., "mass", "mg", "Live", "No", "https://doi.org/10.1086/505997")
 file = bodymass(file, dillon$X.order.species, dillon$dry.mass.mg., "mass", "mg", "Dry", "No", "https://doi.org/10.1371/journal.pone.0084308")
+
+file = bodymass(file, diorhabda$Species, diorhabda$Value, diorhabda$Trait, diorhabda$Metric, diorhabda$State, diorhabda$Estimate, diorhabda$doi)
 
 # Combine genome and body mass/size data
 merged = adjust_values(merge(file, genomes, by = "Species")); length(unique(merged$Species)) # Merge genome and species data sets - this tells us which & how many species we have data for.
@@ -251,5 +255,6 @@ adjust_values_mass <- function(data) {
     select(Source_DOI, Class, Order, Suborder, Family, Genus, Species, Trait, Body_State_at_Measurement, Estimated_from_Regression, Original_Value, Original_Metric, Adjusted_Value, Adjusted_Metric, Converted_Value, Converted_Metric, Conversion_Citation, Final_Value, Final_Metric)
 } # function to adjust & convert values
 mass = adjust_values_mass(mass) # apply function
+mass = subset(mass, Class = Insecta)
 
 write.csv(mass, "../results/Insect_Masses.csv") # output to results file
