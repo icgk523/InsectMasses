@@ -28,16 +28,19 @@ gillespie = read_xlsx("../data/size/gillespie2017beetles.xlsx"); colnames(gilles
 
 
 # Paul Huxley Data
-white = read.csv("../data/body-size-datasets-and-materials/arthropod-data-from-White-et-al-Metabolic-Scaling.csv")
-ehnes = read.csv("../data/body-size-datasets-and-materials/fixed/Ehnes.csv")
-meehan = read.csv("../data/body-size-datasets-and-materials/fixed/Meehan.csv")
-dillon = read.csv("../data/body-size-datasets-and-materials/fixed/dillon.csv")
+white = read.csv("../data/paul_huxley_data/arthropod-data-from-White-et-al-Metabolic-Scaling.csv")
+ehnes = read.csv("../data/paul_huxley_data/Ehnes.csv")
+meehan = read.csv("../data/paul_huxley_data/Meehan.csv")
+dillon = read.csv("../data/paul_huxley_data/dillon.csv")
 
 # Diorhabda carinulata mass
 diorhabda <- data.frame(Species = "Diorhabda carinulata", Value = 0.01089, Trait = "mass", Metric = "g", State = "Live", Estimate = "No", doi = "https://hdl.handle.net/10539/25023")
 
 # Genome Data Loading
 genomes = read.csv("../data/genome/speciessummary.csv"); genomes[1] = NULL # Genome summary data and change column name
+
+# Mass conversion data
+mass <- read.csv("../data/wet_dry_conversion_data_studier_sevick_1992.csv", head = T, sep = ",", fill = T)
 
 # Data Standardisation & Organisation Functions
 check_data = function(data){
@@ -119,8 +122,15 @@ adjust_values <- function(data) {
       (Order == "Blattodea" | Order == "Thysanoptera") & Trait == "size" ~ "Hodar_1996",
       Order == "Ephemeroptera" & Trait == "size" ~ "Smock_1980",
       TRUE ~ NA_character_ # Keep NA in column where conversion was not applied
-    )
-  ) %>% select(doi, Class, Order, Suborder, Family, Genus, Species, Accession, Level, Trait, Collection, Estimate, Value, Metric, Adjusted_Value, Adjusted_Metric, Converted_Value, Converted_Metric, Conversion_Citation)
+    ),
+  Final_Value = 
+    case_when(
+      !is.na(Converted_Value) ~ Converted_Value,
+      !is.na(Adjusted_Value) ~ Adjusted_Value,
+      TRUE ~ Value
+    ),
+  Final_Metric = "mg"
+  ) %>% select(doi, Class, Order, Suborder, Family, Genus, Species, Accession, Level, Trait, Collection, Estimate, Value, Metric, Adjusted_Value, Adjusted_Metric, Converted_Value, Converted_Metric, Conversion_Citation, Final_Value, Final_Metric)
 }
 
 # Data entry
@@ -155,18 +165,70 @@ file = bodymass(file, diorhabda$Species, diorhabda$Value, diorhabda$Trait, diorh
 
 # Combine genome and body mass/size data
 merged = adjust_values(merge(file, genomes, by = "Species")); length(unique(merged$Species)) # Merge genome and species data sets - this tells us which & how many species we have data for.
-merged = subset(merged, Level == "Chromosome") # Keep only highest-quality genomes (Chromosome-level)
+# merged = subset(merged, Level == "Chromosome") # Keep only highest-quality genomes (Chromosome-level)
 
-dir.create(file.path("../results"), showWarnings = FALSE) # Create an output directory relative to "code/", suppress warnings if it already exists
-write.csv(merged, "../results/Insect_Masses_with_Genome_Information.csv") # output to results file
-
-
-plotting <- merged %>% # Create subset to visualise dataset
+#### Convert Dry to Wet Mass ####
+mass$Wet <- mass$Wet * 1000 # Convert wet mass to mg 
+mass$Genus <- sub("^(\\w+).*", "\\1", mass$Species) # Extract genus from species column
+mass =  mass %>% # Create a function to calculate the WD ratios for species, genera, etc. for conversion
+  mutate(WD_ratio = Wet / Dry) %>%
   group_by(Species) %>%
-  summarize(Mean_Converted_Value = mean(Converted_Value, na.rm = TRUE)) %>%
-  left_join(merged, by = "Species") %>%
+  mutate(species_WD_ratio = mean(WD_ratio, na.rm = T)) %>%
+  ungroup() %>%
+  group_by(Genus) %>%
+  mutate(genus_WD_ratio = mean(species_WD_ratio, na.rm = T)) %>%
+  ungroup() %>%
+  group_by(Family) %>%
+  mutate(family_WD_ratio = mean(genus_WD_ratio, na.rm = T)) %>%
+  ungroup() %>%
+  group_by(Order) %>%
+  mutate(order_WD_ratio = mean(family_WD_ratio, na.rm = T)) %>%
+  ungroup()
+
+# Extract necessary columns
+species_ratio <- mass %>% select(Species, species_WD_ratio) %>% distinct()
+genus_ratio <- mass %>% select(Genus, genus_WD_ratio) %>% distinct()
+family_ratio <- mass %>% select(Family, family_WD_ratio) %>% distinct()
+order_ratio <- mass %>% select(Order, order_WD_ratio) %>% distinct()
+
+# Merge datasets on taxonomy columns
+complete_mass <- merged %>%
+  left_join(species_ratio, by = "Species") %>%
+  left_join(genus_ratio, by = "Genus") %>%
+  left_join(family_ratio, by = "Family") %>%
+  left_join(order_ratio, by = "Order")
+
+# Calculate adjusted_wet_value and adjusted_wet for the entire dataset
+convert_mass <- complete_mass %>%
+  mutate(
+    Adjusted_Final_Value = case_when(
+      Trait == "mass" & Collection %in% c("Dry", "NA") & !is.na(species_WD_ratio) ~ Final_Value * species_WD_ratio,
+      Trait == "mass" & Collection %in% c("Dry", "NA") & is.na(species_WD_ratio) & !is.na(genus_WD_ratio) ~ Final_Value * genus_WD_ratio,
+      Trait == "mass" & Collection %in% c("Dry", "NA") & is.na(species_WD_ratio) & is.na(genus_WD_ratio) & !is.na(family_WD_ratio) ~ Final_Value * family_WD_ratio,
+      Trait == "mass" & Collection %in% c("Dry", "NA") & is.na(species_WD_ratio) & is.na(genus_WD_ratio) & is.na(family_WD_ratio) & !is.na(order_WD_ratio) ~ Final_Value * order_WD_ratio,
+      TRUE ~ Final_Value  # If no conversion is needed, keep the original value
+    ),
+    Adjusted_Final_Metric = if_else(
+      Trait == "mass" & Collection %in% c("Dry", "NA") & 
+        (!is.na(species_WD_ratio) | !is.na(genus_WD_ratio) | !is.na(family_WD_ratio) | !is.na(order_WD_ratio)),
+      "yes",
+      "no"
+    )
+  ) %>%
+  select(-species_WD_ratio, -genus_WD_ratio, -family_WD_ratio, -order_WD_ratio)  # Remove the ratio columns, don't need them anymore
+
+plotting <- convert_mass %>% # Create subset to visualise dataset
+  group_by(Species) %>%
+  summarize(Mean_Converted_Value = mean(Adjusted_Final_Value, na.rm = TRUE)) %>%
+  left_join(convert_mass, by = "Species") %>%
   distinct(Species, .keep_all = TRUE) %>%
   select(Class, Order, Suborder, Family, Genus, Species, Accession, Level, Mean_Converted_Value)
+
+# Change TOGA reference species accessions for consistency
+plotting$Accession[plotting$Species == "Drosophila melanogaster"] = "GCF_000001215.4"
+plotting$Accession[plotting$Species == "Diorhabda carinulata"] = "GCF_026250575.1"
+plotting$Accession[plotting$Species == "Apis cerana"] = "GCF_029169275.1"
+plotting$Accession[plotting$Species == "Drosophila melanogaster"] = "GCF_000001215.4"
 
 summary = plotting %>% group_by(Order) %>% summarise(n = n()) # Number of species within each insect order
 
@@ -177,9 +239,12 @@ ggplot(plotting, aes(x = log(Mean_Converted_Value)))+ # Plot of mass-genome data
   theme(legend.position = "none")+
   ggtitle("Log-Transformed Mass-Genome Data")
 
+dir.create(file.path("../results"), showWarnings = FALSE) # Create an output directory relative to "code/", suppress warnings if it already exists
+write.csv(plotting, "../results/Insect_Masses_and_Genomes.csv") # output to results file
+
 # Create output of insect mass
-mass = file; colnames(mass)[c(1,7)] = c("species", "source_doi") # Create a duplicate file 
-ids <- name2taxid(mass$species, out_type="summary") # Get ncbi id for taxonomy from name
+insect_mass = file; colnames(insect_mass)[c(1,7)] = c("species", "source_doi") # Create a duplicate file 
+ids <- name2taxid(insect_mass$species, out_type="summary") # Get ncbi id for taxonomy from name
 classes = classification(ids$id) # output taxonomy from id
 
 process_df <- function(df) { 
@@ -194,8 +259,8 @@ processed_data <- mclapply(classes, process_df, mc.cores = detectCores()) # Appl
 taxonomy <- bind_rows(processed_data) # Bind output rows
 
 taxonomy = taxonomy[, c("class", "order", "suborder", "family", "genus", "species")] # subset taxonomy
-mass = merge(taxonomy, mass, by = "species") # merge taxonomy with data
-colnames(mass) = c("Species", "Class", "Order", "Suborder", "Family", "Genus", "Trait", "Original_Value", "Original_Metric", "Body_State_at_Measurement", "Estimated_from_Regression", "Source_DOI") # rename columns appropriately
+insect_mass = merge(taxonomy, insect_mass, by = "species") # merge taxonomy with data
+colnames(insect_mass) = c("Species", "Class", "Order", "Suborder", "Family", "Genus", "Trait", "Original_Value", "Original_Metric", "Body_State_at_Measurement", "Estimated_from_Regression", "Source_DOI") # rename columns appropriately
 adjust_values_mass <- function(data) {
   data %>% 
     mutate(
@@ -232,7 +297,7 @@ adjust_values_mass <- function(data) {
         ),
       Converted_Metric = 
         case_when(!is.na(Converted_Value) ~ "mg",
-          TRUE ~ NA
+                  TRUE ~ NA
         ),
       Conversion_Citation = 
         case_when(
@@ -254,7 +319,40 @@ adjust_values_mass <- function(data) {
     ) %>% 
     select(Source_DOI, Class, Order, Suborder, Family, Genus, Species, Trait, Body_State_at_Measurement, Estimated_from_Regression, Original_Value, Original_Metric, Adjusted_Value, Adjusted_Metric, Converted_Value, Converted_Metric, Conversion_Citation, Final_Value, Final_Metric)
 } # function to adjust & convert values
-mass = adjust_values_mass(mass) # apply function
-mass = subset(mass, Class = Insecta)
+insect_mass = adjust_values_mass(insect_mass) # apply function
 
-write.csv(mass, "../results/Insect_Masses.csv") # output to results file
+# Merge datasets on taxonomy columns
+complete_mass <- insect_mass %>%
+  left_join(species_ratio, by = "Species") %>%
+  left_join(genus_ratio, by = "Genus") %>%
+  left_join(family_ratio, by = "Family") %>%
+  left_join(order_ratio, by = "Order")
+
+# Calculate adjusted_wet_value and adjusted_wet for the entire dataset
+convert_mass <- complete_mass %>%
+  mutate(
+    Adjusted_Final_Value = case_when(
+      Trait == "mass" & Body_State_at_Measurement %in% c("Dry", "NA") & !is.na(species_WD_ratio) ~ Final_Value * species_WD_ratio,
+      Trait == "mass" & Body_State_at_Measurement %in% c("Dry", "NA") & is.na(species_WD_ratio) & !is.na(genus_WD_ratio) ~ Final_Value * genus_WD_ratio,
+      Trait == "mass" & Body_State_at_Measurement %in% c("Dry", "NA") & is.na(species_WD_ratio) & is.na(genus_WD_ratio) & !is.na(family_WD_ratio) ~ Final_Value * family_WD_ratio,
+      Trait == "mass" & Body_State_at_Measurement %in% c("Dry", "NA") & is.na(species_WD_ratio) & is.na(genus_WD_ratio) & is.na(family_WD_ratio) & !is.na(order_WD_ratio) ~ Final_Value * order_WD_ratio,
+      TRUE ~ Final_Value  # If no conversion is needed, keep the original value
+    ),
+    Adjusted_Final_Metric = if_else(
+      Trait == "mass" & Body_State_at_Measurement %in% c("Dry", "NA") & 
+        (!is.na(species_WD_ratio) | !is.na(genus_WD_ratio) | !is.na(family_WD_ratio) | !is.na(order_WD_ratio)),
+      "yes",
+      "no"
+    )
+  ) %>%
+  select(-species_WD_ratio, -genus_WD_ratio, -family_WD_ratio, -order_WD_ratio)  # Remove the ratio columns, don't need them anymore
+
+mass_summary = convert_mass %>%
+  filter(Class == "Insecta") %>%
+  group_by(Order, Suborder, Family, Genus, Species) %>%
+  summarize(Mean_Converted_Value = mean(Adjusted_Final_Value, na.rm = TRUE)) %>%
+  mutate(Log_Mean_Converted_Value = log(Mean_Converted_Value)) %>%
+  select(Order, Suborder, Family, Genus, Species, Mean_Converted_Value, Log_Mean_Converted_Value)
+
+# dir.create(file.path("../results"), showWarnings = FALSE) # Create an output directory relative to "code/", suppress warnings if it already exists
+write.csv(mass_summary, "../results/Insect_Masses.csv") # output to results file
